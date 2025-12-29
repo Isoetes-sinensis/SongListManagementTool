@@ -1,0 +1,39 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="navbarLoggedIn.master.cs" Inherits="SongListManagementTool.navbarLoggedIn" %>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<link rel="stylesheet" href="./Styles/bootstrap.min.css" />
+<link rel="stylesheet" href="./Styles/dropdownlist.css" />
+
+<head runat="server">
+    <title></title>
+    <asp:ContentPlaceHolder ID="head" runat="server">
+    </asp:ContentPlaceHolder>
+</head>
+<body>
+    <form id="form1" runat="server">
+    <div>
+        <div class="navbar navbar-expand-sm navbar-dark" style="background-color: #61B340; z-index: 100">
+            <div class="container-fluid">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <asp:LinkButton ID="LinkButton1" runat="server" class="nav-link" 
+                            onclick="LinkButton1_Click">退出</asp:LinkButton>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="./MyPage.aspx">我的歌单</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="./SongStat.aspx">分类统计</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <asp:ContentPlaceHolder ID="navbar2" runat="server">
+        </asp:ContentPlaceHolder>
+    </div>
+    </form>
+</body>
+</html>

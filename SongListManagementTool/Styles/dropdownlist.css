@@ -1,0 +1,10 @@
+﻿select
+{
+    width: 185px;
+    height: 30px;
+}
+
+th
+{
+    min-width: 50px;
+}
