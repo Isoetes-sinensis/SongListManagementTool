@@ -70,6 +70,7 @@ namespace SongListManagementTool
                 else if (Regex.IsMatch(link, "^.*://music[.]163[.]com/.*$")) type = "163";
                 else if (Regex.IsMatch(link, "^.*://music[.]apple[.]com/.*$")) type = "apple";
                 else if (Regex.IsMatch(link, "^.*://www[.]youtube[.]com/.*$")) type = "youtube";
+                else if (Regex.IsMatch(link, "^.*://open[.]spotify[.]com/.*$")) type = "spotify";
                 else type = "others";
 
                 SqlConnection conn = DataOper.Connect();
