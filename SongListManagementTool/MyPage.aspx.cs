@@ -76,10 +76,11 @@ namespace SongListManagementTool
         }
 
         // 绑定数据至tie-up的DropDownList。
-        public static void BindTieUpDropDownList(DropDownList d, string userid, bool hasDefaultItem=true)
+        public static void BindTieUpDropDownList(DropDownList d, string userid, bool hasDefaultItem = true)
         {
             SqlConnection conn = DataOper.Connect();
-            DataSet ds = DataOper.Select(conn, "songListTieUp", conditions: ("WHERE uid=" + userid));
+            string strSQL = "SELECT * FROM songListTieUp WHERE uid=@uid";
+            DataSet ds = DataOper.Select(conn, strSQL, new Dictionary<string, object> { ["@uid"] = userid });
             conn.Close();
 
             d.DataSource = ds;
@@ -121,29 +122,36 @@ namespace SongListManagementTool
             }
         }
 
-        // 返回更新数据库用的字符串（SET “column=...”）。
-        protected string GetUpdateString(int rowID, int cellID, string column)
+        // 返回更新数据库用的字符串。
+        protected string GetUpdateString(int rowID, int cellID)
         {
-            string ret = ((TextBox) this.GridView1.Rows[rowID].Cells[cellID].Controls[0]).Text.ToString().Trim();
-            if (ret == "") return column + "=NULL";
-            else return column + "=N'" + DataOper.Escape(ret) + "'";
+            string ret = ((TextBox)this.GridView1.Rows[rowID].Cells[cellID].Controls[0]).Text.ToString().Trim();
+            if (ret == "") return null;
+            else return ret;
         }
-        
+
         protected void GridView1_RowUpdating(object sender, GridViewUpdateEventArgs e)
         {
             string sid = this.GridView1.Rows[e.RowIndex].Cells[10].Text;
-            string title = this.GetUpdateString(e.RowIndex, 1, "title");
-            string artist = this.GetUpdateString(e.RowIndex, 2, "artist");
-            string lyricist = this.GetUpdateString(e.RowIndex, 3, "lyricist");
-            string composer = this.GetUpdateString(e.RowIndex, 4, "composer");
-            string arranger = this.GetUpdateString(e.RowIndex, 5, "arranger");
-            string album = this.GetUpdateString(e.RowIndex, 6, "album");
+            string title = this.GetUpdateString(e.RowIndex, 1);
+            string artist = this.GetUpdateString(e.RowIndex, 2);
+            string lyricist = this.GetUpdateString(e.RowIndex, 3);
+            string composer = this.GetUpdateString(e.RowIndex, 4);
+            string arranger = this.GetUpdateString(e.RowIndex, 5);
+            string album = this.GetUpdateString(e.RowIndex, 6);
 
-            if (title.EndsWith("NULL")) Response.Write("<script>alert('歌名不可为空。');</script>");
+            if (title == null) Response.Write("<script>alert('歌名不可为空。');</script>");
             else
             {
                 SqlConnection conn = DataOper.Connect();
-                DataOper.Update(conn, "songListSongs", "WHERE uid=" + Session["uid"] + " AND sid=" + sid, title, artist, lyricist, composer, arranger, album);
+                string strSQL = @"
+                    UPDATE songListSongs
+                    SET title=@title, artist=@artist, lyricist=@lyricist, composer=@composer, arranger=@arranger, album=@album
+                    WHERE uid=@uid AND sid=@sid
+                ";
+                var paramDict = new Dictionary<string, object> { ["@uid"] = Session["uid"], ["@sid"] = sid, ["@title"] = title, ["@artist"] = artist, ["@lyricist"] = lyricist, ["@composer"] = composer, ["@arranger"] = arranger, ["@album"] = album };
+
+                DataOper.Execute(conn, strSQL, paramDict);
                 conn.Close();
 
                 this.GridView1.EditIndex = -1;
@@ -156,15 +164,19 @@ namespace SongListManagementTool
         protected void GridView1_RowDeleting(object sender, GridViewDeleteEventArgs e)
         {
             string sid = this.GridView1.Rows[e.RowIndex].Cells[10].Text;
+
             SqlConnection conn = DataOper.Connect();
-            DataOper.Delete(conn, "songListSongs", "WHERE uid=" + Session["uid"] + " AND sid=" + sid);
-            DataOper.Delete(conn, "songListResources", "WHERE uid=" + Session["uid"] + " AND sid=" + sid);
+            string strSQL = "DELETE FROM songListSongs WHERE uid=@uid AND sid=@sid";
+            string strSQL2 = "DELETE FROM songListResources WHERE uid=@uid AND sid=@sid";
+            var paramDict = new Dictionary<string, object> { ["@uid"] = Session["uid"], ["@sid"] = sid };
+            DataOper.Execute(conn, strSQL, paramDict); // 删除歌曲信息。
+            DataOper.Execute(conn, strSQL2, paramDict); // 删除歌曲链接。
             conn.Close();
 
             string dirPath = "./Notes/" + Session["uid"];
             dirPath = Server.MapPath(dirPath);
             string docPath = dirPath + "/" + sid + ".txt";
-            if (File.Exists(docPath)) File.Delete(docPath);
+            if (File.Exists(docPath)) File.Delete(docPath); // 删除歌曲笔记。
 
             this.Bind(true);
             Response.Write("<script>alert('删除成功。');</script>");
@@ -176,36 +188,61 @@ namespace SongListManagementTool
             this.Bind();
         }
 
-        // 获取查询数据用的字符串（WHERE ... “AND column=...”）。
-        protected string GetSelectionString(TextBox textbox, string column)
+        // 根据TextBox的值向查询歌曲信息的SQL语句中添加条件。若值为空，返回false。
+        protected bool AddConditions(TextBox textbox, string field, ref string strSQL, Dictionary<string, object> paramDict)
         {
-            string ret = textbox.Text.Trim();
+            string text = textbox.Text.Trim();
             textbox.Text = "";
-            if (ret == "") return "";
-            else return " AND " + column + "=N'" + DataOper.Escape(ret) + "'";
+            if (text != "")
+            {
+                string paramName = "@" + field;
+                strSQL += " AND ss." + field + "=" + paramName;
+                paramDict[paramName] = text;
+                return true;
+            }
+            else return false;
+        }
+
+        // 根据DropDownList的值向查询歌曲信息的SQL语句中添加条件。若值为空，返回false。
+        protected bool AddConditions(DropDownList dropDownList, string field, ref string strSQL, Dictionary<string, object> paramDict)
+        {
+            string text = dropDownList.SelectedItem.Value;
+            if (text != "NULL")
+            {
+                string paramName = "@" + field;
+                strSQL += " AND ss." + field + "=" + paramName;
+                paramDict[paramName] = text;
+                return true;
+            }
+            else return false;
         }
 
         // 查询符合条件的歌曲数据。
         protected void Button1_Click(object sender, EventArgs e)
         {
-            string title = GetSelectionString(this.TitleTextBox, "ss.title");
-            string artist = GetSelectionString(this.ArtistTextBox, "ss.artist");
-            string lyricist = GetSelectionString(this.LyricistTextBox, "ss.lyricist");
-            string composer = GetSelectionString(this.ComposerTextBox, "ss.composer");
-            string arranger = GetSelectionString(this.ArrangerTextBox, "ss.arranger");
-            string tieup = this.TieUpDropDownList.SelectedItem.Value;
-            string album = GetSelectionString(this.AlbumTextBox, "ss.album");
-            string status = this.StatusDropDownList.SelectedItem.Value;
+            string strSQL = @"
+                SELECT ss.*, st.name strTieUp
+                FROM SongListSongs ss, SongListTieUp st
+                WHERE ss.tieup=st.tid
+                AND ss.uid=@uid
+            ";
+            var paramDict = new Dictionary<string, object> { ["@uid"] = Session["uid"] };
 
-            if (tieup == "NULL") tieup = "";
-            else tieup = "AND ss.tieup=" + tieup;
-            if (status == "NULL") status = "";
-            else status = "AND ss.status=" + status;
-            if (title == "" && artist == "" && lyricist == "" && composer == "" && arranger == "" && tieup == "" && album == "" && status == "") Response.Write("<script>alert('查询条件不可为空。');</script>");
+            bool title = AddConditions(this.TitleTextBox, "title", ref strSQL, paramDict);
+            bool artist = AddConditions(this.ArtistTextBox, "artist", ref strSQL, paramDict);
+            bool lyricist = AddConditions(this.LyricistTextBox, "lyricist", ref strSQL, paramDict);
+            bool composer = AddConditions(this.ComposerTextBox, "composer", ref strSQL, paramDict);
+            bool arranger = AddConditions(this.ArrangerTextBox, "arranger", ref strSQL, paramDict);
+            bool album = AddConditions(this.AlbumTextBox, "album", ref strSQL, paramDict);
+            bool tieup = AddConditions(this.TieUpDropDownList, "tieup", ref strSQL, paramDict);
+            bool status = AddConditions(this.StatusDropDownList, "status", ref strSQL, paramDict);
+
+            if (paramDict.ContainsKey("@composer")) this.AlbumTextBox.Text = paramDict["@composer"].ToString();
+            if (!(title || artist || lyricist || composer || arranger || album || tieup || status)) Response.Write("<script>alert('查询条件不可为空。');</script>");
             else
             {
                 SqlConnection conn = DataOper.Connect();
-                DataSet ds = DataOper.Select(conn, "SongListSongs ss, SongListTieUp st", "ss.*, st.name strTieUp", conditions: ("WHERE ss.uid=" + Session["uid"] + title + artist + lyricist + composer + arranger + tieup + album + status + " AND ss.tieup=st.tid"));
+                DataSet ds = DataOper.Select(conn, strSQL, paramDict);
                 conn.Close();
 
                 if (ds.Tables[0].Rows.Count == 0) Response.Write("<script>alert('没有符合条件的查询结果。');</script>");
@@ -223,8 +260,15 @@ namespace SongListManagementTool
         {
             string ret = textbox.Text.Trim();
             // textbox.Text = "";
-            if (ret == "") return "NULL";
-            else return "N'" + DataOper.Escape(ret) + "'";
+            if (ret == "") return null;
+            else return ret;
+        }
+
+        protected string GetInsertionString(DropDownList dropDownList)
+        {
+            string ret = dropDownList.SelectedItem.Value;
+            if (ret == "NULL") return null;
+            else return ret;
         }
 
         // 插入输入的歌曲数据。
@@ -235,13 +279,13 @@ namespace SongListManagementTool
             string lyricist = GetInsertionString(this.LyricistTextBox);
             string composer = GetInsertionString(this.ComposerTextBox);
             string arranger = GetInsertionString(this.ArrangerTextBox);
-            string tieup = this.TieUpDropDownList.SelectedItem.Value;
             string album = GetInsertionString(this.AlbumTextBox);
-            string status = this.StatusDropDownList.SelectedItem.Value;
+            string tieup = GetInsertionString(this.TieUpDropDownList);
+            string status = GetInsertionString(this.StatusDropDownList);
 
-            if (title == "NULL") Response.Write("<script>alert('歌名不可为空。');</script>");
-            else if (tieup == "NULL") Response.Write("<script>alert('tie-up不可为空。');</script>");
-            else if (status == "NULL") Response.Write("<script>alert('整理情况不可为空。');</script>");
+            if (title == null) Response.Write("<script>alert('歌名不可为空。');</script>");
+            else if (tieup == null) Response.Write("<script>alert('tie-up不可为空。');</script>");
+            else if (status == null) Response.Write("<script>alert('整理情况不可为空。');</script>");
             else if (status == "1") Response.Write("<script>alert('不可直接添加已整理的歌曲。');</script>");
             else
             {

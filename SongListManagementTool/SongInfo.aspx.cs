@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
-using System.Data;
-using System.Data.SqlClient;
-using System.Text.RegularExpressions;
 
 namespace SongListManagementTool
 {
@@ -18,8 +19,10 @@ namespace SongListManagementTool
             else
             {
                 SqlConnection conn = DataOper.Connect();
-                DataSet ds = DataOper.Select(conn, "songListSongs", conditions: ("WHERE uid=" + Session["uid"] + " AND sid=" + Request.Params["sid"]));
-                DataSet ds2 = DataOper.Select(conn, "songListResources", conditions: ("WHERE uid=" + Session["uid"] + " AND sid=" + Request.Params["sid"]));
+                string strSQL = "SELECT * FROM songListSongs WHERE uid=@uid AND sid=@sid";
+                string strSQL2 = "SELECT * FROM songListResources WHERE uid=@uid AND sid=@sid";
+                DataSet ds = DataOper.Select(conn, strSQL, new Dictionary<string, object> { ["@uid"] = Session["uid"], ["@sid"] = Request.Params["sid"] });
+                DataSet ds2 = DataOper.Select(conn, strSQL2, new Dictionary<string, object> { ["@uid"] = Session["uid"], ["@sid"] = Request.Params["sid"] });
                 conn.Close();
 
                 try
@@ -74,8 +77,9 @@ namespace SongListManagementTool
                 else type = "others";
 
                 SqlConnection conn = DataOper.Connect();
-                DataSet ds = DataOper.Select(conn, "songListResources", conditions: ("WHERE uid=" + Session["uid"] + " AND sid=" + Request.Params["sid"] + " AND resource='" + DataOper.Escape(link) + "'"));
-
+                string strSQL = "SELECT * FROM songListResources WHERE uid=@uid AND sid=@sid AND resource=@resource";
+                DataSet ds = DataOper.Select(conn, strSQL, new Dictionary<string, object> { ["@uid"] = Session["uid"], ["@sid"] = Request.Params["sid"], ["@resource"] = link });
+                
                 if (ds.Tables[0].Rows.Count > 0)
                 {
                     conn.Close();
@@ -83,7 +87,7 @@ namespace SongListManagementTool
                 }
                 else
                 {
-                    DataOper.Insert(conn, "songListResources", Request.Params["sid"], (string)Session["uid"], "'" + DataOper.Escape(link) + "'", "'" + type + "'");
+                    DataOper.Insert(conn, "songListResources", Request.Params["sid"], (string)Session["uid"], link, type);
                     conn.Close();
                     this.LinkTextBox.Text = "";
                     Response.Redirect(Request.Url.ToString()); // 刷新页面以显示添加的链接。
@@ -97,8 +101,11 @@ namespace SongListManagementTool
             if (e.CommandName == "Delete")
             {
                 SqlConnection conn = DataOper.Connect();
-                DataOper.Delete(conn, "songListResources", "WHERE uid=" + Session["uid"] + " AND sid=" + Request.Params["sid"] + " AND resource='" + DataOper.Escape(e.CommandArgument.ToString()) + "'");
+                string strSQL = "DELETE FROM songListResources WHERE uid=@uid AND sid=@sid AND resource=@resource";
+                var paramDict = new Dictionary<string, object> { ["@uid"] = Session["uid"], ["@sid"] = Request.Params["sid"], ["@resource"] = e.CommandArgument.ToString() };
+                DataOper.Execute(conn, strSQL, paramDict);
                 conn.Close();
+
                 Response.Redirect(Request.Url.ToString());
             }
         }
@@ -113,9 +120,13 @@ namespace SongListManagementTool
         protected void Button4_Click(object sender, EventArgs e)
         {
             string tieup = this.DropDownList1.SelectedItem.Value;
+
             SqlConnection conn = DataOper.Connect();
-            DataOper.Update(conn, "songListSongs", "WHERE uid=" + Session["uid"] + " AND sid=" + Request.Params["sid"], "tieup=" + tieup);
+            string strSQL = "UPDATE songListSongs SET tieup=@tieup WHERE uid=@uid AND sid=@sid";
+            var paramDict = new Dictionary<string, object> { ["@uid"] = Session["uid"], ["@sid"] = Request.Params["sid"], ["@tieup"] = tieup };
+            DataOper.Execute(conn, strSQL, paramDict);
             conn.Close();
+
             Response.Redirect(Request.Url.ToString());
         }
 
@@ -144,8 +155,11 @@ namespace SongListManagementTool
             else
             {
                 SqlConnection conn = DataOper.Connect();
-                DataOper.Update(conn, "songListSongs", "WHERE uid=" + Session["uid"] + " AND sid=" + Request.Params["sid"], "status=" + status);
+                string strSQL = "UPDATE songListSongs SET status=@status WHERE uid=@uid AND sid=@sid";
+                var paramDict = new Dictionary<string, object> { ["@uid"] = Session["uid"], ["@sid"] = Request.Params["sid"], ["@status"] = status };
+                DataOper.Execute(conn, strSQL, paramDict);
                 conn.Close();
+
                 Response.Redirect(Request.Url.ToString());
             }
         }

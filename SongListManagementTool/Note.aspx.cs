@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
-using System.IO;
-using System.Text;
-using System.Data.SqlClient;
 
 namespace SongListManagementTool
 {
@@ -31,22 +32,25 @@ namespace SongListManagementTool
             string dirPath = "./Notes/" + Session["uid"];
             dirPath = Server.MapPath(dirPath);
             string docPath = dirPath + "/" + Request.Params["sid"] + ".txt";
-
             if (!File.Exists(docPath)) File.Create(docPath).Close();
 
             SqlConnection conn = DataOper.Connect();
+            string strSQL = "UPDATE songListSongs SET status=@status WHERE uid=@uid AND sid=@sid";
+            var paramDict = new Dictionary<string, object> { ["@uid"] = Session["uid"], ["@sid"] = Request.Params["sid"] };
+
             if (this.TextBox1.Text == "")
             {
                 File.Delete(docPath);
-                DataOper.Update(conn, "songListSongs", "WHERE uid=" + Session["uid"] + " AND sid=" + Request.Params["sid"], "status=0"); // 更改整理情况至未整理。
+                paramDict.Add("@status", 0); // 更改整理情况至未整理。
             }
             else
             {
                 File.WriteAllText(docPath, this.TextBox1.Text, Encoding.UTF8);
-                DataOper.Update(conn, "songListSongs", "WHERE uid=" + Session["uid"] + " AND sid=" + Request.Params["sid"], "status=1"); // 更改整理情况至已整理。
+                paramDict.Add("@status", 1); // 更改整理情况至已整理。
             }
-
+            DataOper.Execute(conn, strSQL, paramDict);
             conn.Close();
+
             Response.Write("<script>alert('笔记已保存。');</script>");
         }
 

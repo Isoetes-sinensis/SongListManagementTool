@@ -52,7 +52,8 @@ namespace SongListManagementTool
             {
                 SqlConnection conn = DataOper.Connect();
                 DataOper.Initialise(conn);
-                DataSet ds = DataOper.Select(conn, "songListUsers", conditions: ("WHERE username = '" + username + "'"));
+                string strSQL = "SELECT * FROM songListUsers WHERE username=@username";
+                DataSet ds = DataOper.Select(conn, strSQL, new Dictionary<string, object> { ["@username"] = username } );
 
                 if (ds.Tables[0].Rows.Count > 0)
                 {
@@ -61,7 +62,7 @@ namespace SongListManagementTool
                 }
                 else
                 {
-                    DataOper.Insert(conn, "songListUsers", "'" + username + "','" + password + "'");
+                    DataOper.Insert(conn, "songListUsers", username, password);
                     conn.Close();
                     Response.Redirect("Login.aspx?register=success");
                 }

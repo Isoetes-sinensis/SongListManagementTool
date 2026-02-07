@@ -1,12 +1,13 @@
-﻿using System;
+﻿using Microsoft.Ajax.Utilities;
+using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
-using System.Text.RegularExpressions;
-using System.Data;
-using System.Data.SqlClient;
 
 namespace SongListManagementTool
 {
@@ -41,7 +42,9 @@ namespace SongListManagementTool
             {
                 SqlConnection conn = DataOper.Connect();
                 DataOper.Initialise(conn);
-                DataSet ds = DataOper.Select(conn, "songListUsers", conditions: ("WHERE username = '" + username + "'"));
+
+                string strSQL = "SELECT * FROM songListUsers WHERE username=@username";
+                DataSet ds = DataOper.Select(conn, strSQL, new Dictionary<string, object> { ["@username"] = username });
                 conn.Close();
 
                 if (ds.Tables[0].Rows.Count > 0)

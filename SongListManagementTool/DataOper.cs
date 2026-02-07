@@ -20,46 +20,38 @@ namespace SongListManagementTool
                 return conn;
         }
 
-        // 处理SQL语句中的特殊字符。
-        public static string Escape(string rawSQL)
-        {
-            string ret = rawSQL.Replace("'", "''");
-            return ret;
-        }
-
         // 选择。
-        public static DataSet Select(SqlConnection conn, string table, string selected="*", string conditions="")
+        public static DataSet Select(SqlConnection conn, string strSQL, Dictionary<string, object> paramDict)
         {
-            string strSQL = "SELECT " + selected + " FROM " + table + " " + conditions;
             SqlCommand comm = new SqlCommand(strSQL, conn);
+            foreach (var p in paramDict) comm.Parameters.AddWithValue(p.Key, p.Value ?? DBNull.Value); // p.Value == null时替换为DBNull.Value。
             SqlDataAdapter da = new SqlDataAdapter(comm);
             DataSet ds = new DataSet();
             da.Fill(ds);
             return ds;
         }
 
+        // 执行参数化查询。可用于插入、更新或删除。
+        public static void Execute(SqlConnection conn, string strSQL, Dictionary<string, object> paramDict)
+        {
+            SqlCommand comm = new SqlCommand(strSQL, conn);
+            foreach (var p in paramDict) comm.Parameters.AddWithValue(p.Key, p.Value ?? DBNull.Value);
+            comm.ExecuteNonQuery();
+        }
+
         // 插入。
         public static void Insert(SqlConnection conn, string table, params string[] values)
         {
-            string strSQL = "INSERT INTO " + table + " VALUES (" + string.Join(",", values) + ");";
-            SqlCommand comm = new SqlCommand(strSQL, conn);
-            comm.ExecuteNonQuery();
-        }
-
-        // 更新。
-        public static void Update(SqlConnection conn, string table, string conditions="", params string[] updated)
-        {
-            string strSQL = "UPDATE " + table + " SET " + string.Join(",", updated) + " " + conditions;
-            SqlCommand comm = new SqlCommand(strSQL, conn);
-            comm.ExecuteNonQuery();
-        }
-
-        // 删除。
-        public static void Delete(SqlConnection conn, string table, string conditions)
-        {
-            string strSQL = "DELETE FROM " + table + " " + conditions;
-            SqlCommand comm = new SqlCommand(strSQL, conn);
-            comm.ExecuteNonQuery();
+            var paramDict = new Dictionary<string, object>();
+            string[] parameters = new string[values.Length];
+            for (int i = 0; i < values.Length; i++)
+            {
+                string newParam = "@p" + i;
+                parameters[i] = newParam;
+                paramDict.Add(newParam, values[i]);
+            }
+            string strSQL = "INSERT INTO " + table + " VALUES (" + string.Join(",", parameters) + ");";
+            Execute(conn, strSQL, paramDict);
         }
 
         // 初次使用系统时需要初始化，包括创建数据库等操作。

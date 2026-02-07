@@ -168,7 +168,7 @@ namespace SongListManagementTool
 
                 // 此处可考虑添加去重功能。
 
-                DataOper.Insert(conn, "songListTieUp", (string)Session["uid"], "N'" + DataOper.Escape(tieup) + "'", "N'" + DataOper.Escape(type) + "'");
+                DataOper.Insert(conn, "songListTieUp", (string)Session["uid"], tieup, type);
                 this.Bind(true);
                 Response.Write("<script>alert('插入成功。');</script>");
             }
